@@ -1,5 +1,4 @@
-import React, { useState, useEffect ,Component } from 'react';
-import firebase from './firebase'; 
+import React, { Component } from 'react';
 
 // import {Redirect} from 'react-router-dom'; 
 import direction from './assets/images/direction.png';
@@ -14,32 +13,113 @@ import MyMap from './component/MyMap';
 import $ from 'jquery'; 
 
 class Home extends Component {
- 
-  componentDidMount() {
-
-  $(document).ready(function(){
     
-    $('ul.tabs li').click(function(){
-        var tab_id = $(this).attr('data-tab');
+  constructor() {
+    super();
+    this.state = {
+        branches: [],
+        selectedBranch: '',
+        drivers: [],
+        searchQuery: '',
+        };
+  }
 
-        $('ul.tabs li').removeClass('current');
-        $('.tab-content').removeClass('current');
+  componentDidMount() 
+  {
+        $(document).ready(function(){
+        
+            $('ul.tabs li').click(function(){
+                var tab_id = $(this).attr('data-tab');
+        
+                $('ul.tabs li').removeClass('current');
+                $('.tab-content').removeClass('current');
+        
+                $(this).addClass('current');
+                $("#"+tab_id).addClass('current');
+            })
+        
+        })
+    
+    
+        $(".sideicon").click(function(){
+            $(".sidebar").fadeIn();
+        });
+        $(".routing_head h4 i").click(function(){
+            $(".sidebar").fadeOut();
+        });
 
-        $(this).addClass('current');
-        $("#"+tab_id).addClass('current');
-    })
+        // Fetch branches from the specified API endpoint
+        fetch('http://localhost:3001/api/branches')
+        .then(response => response.json())
+        .then(data => {
+            this.setState({ branches: data });
+        })
+        .catch(error => {
+            console.error('Error fetching branches:', error);
+        });
 
-})
+        $('#All').on('click', this.handleCheckAll);
+  }
+    
+  componentWillUnmount() {
 
+    $('#All').off('click', this.handleCheckAll);
 
-$(".sideicon").click(function(){
-    $(".sidebar").fadeIn();
-});
-$(".routing_head h4 i").click(function(){
-    $(".sidebar").fadeOut();
-});
+  }    
+ 
+
+  fetchDrivers = (branchId) => {
+            // Fetch drivers for the selected branch from the drivers API
+            fetch(`http://localhost:3001/api/getDrivers/${branchId}`)
+              .then(response => response.json())
+              .then(data => {
+                this.setState({ drivers: data });
+              })
+              .catch(error => {
+                console.error('Error fetching drivers:', error);
+              });
+              
   } 
+  
+  handleSearch = () => {
+    const searchTerm = $('#searchInput').val().toLowerCase();
+    const filteredDrivers = this.state.drivers.filter(driver =>
+      driver.name.toLowerCase().includes(searchTerm)
+    );
+
+    // Update the state with the filtered results
+    this.setState({
+      filteredDrivers,
+    });
+  };
+
+  handleBranchChange = (event) => {
+    const selectedBranch = event.target.value;
+    this.setState({ selectedBranch, drivers: [] });
+
+    if (selectedBranch) {
+      // Fetch drivers when a branch is selected
+      this.fetchDrivers(selectedBranch);
+    }
+  };
+
+  handleCheckAll = () => {
+    // Use jQuery to check all checkboxes with class 'checkboxGroup'
+    $('.checkboxGroup').prop('checked', $('#All').prop('checked'));
+  };
+
+  handleSearchChange = (event) => {
+    this.setState({ searchQuery: event.target.value });
+  };
   render() {
+    const { branches, selectedBranch, drivers } = this.state;
+
+    const { searchQuery } = this.state;
+
+     // Filter drivers based on the search query
+     const filteredDrivers = drivers.filter((driver) =>
+     driver.name.toLowerCase().includes(searchQuery.toLowerCase())
+   );
     
     return (
 
@@ -53,9 +133,9 @@ $(".routing_head h4 i").click(function(){
     <div className="row">
         <div className="col-lg-4 col-md-4 col-sm-5 sidegapp map_data">
             <ul>
-                <li><a link to="#"><i className="feather icon-map-pin"></i> Map</a></li>
-                <li><a link to="#"><i className="feather icon-list"></i> Data</a></li>
-                <li><a link to="#"><i className="feather icon-refresh-ccw"></i> Undo</a></li>
+                <li><a  href="#"><i className="feather icon-map-pin"></i> Map</a></li>
+                <li><a  href="#"><i className="feather icon-list"></i> Data</a></li>
+                <li><a  href="#"><i className="feather icon-refresh-ccw"></i> Undo</a></li>
             </ul>
         </div>
         <div className="col-lg-4 col-md-4 col-sm-5 sidegapp middle_head">
@@ -63,8 +143,8 @@ $(".routing_head h4 i").click(function(){
         </div>
         <div className="col-lg-4 col-md-4 col-sm-2 sidegapp map_data right_bar">
             <ul>
-                <li><a link to="#"><i className="feather icon-map-pin"></i> </a></li>
-                <li><a link to="#"><i className="feather icon-user-plus"></i> </a></li>
+                <li><a href="#"><i className="feather icon-map-pin"></i> </a></li>
+                <li><a href="#"><i className="feather icon-user-plus"></i> </a></li>
             </ul>
         </div>
     </div>
@@ -88,27 +168,32 @@ $(".routing_head h4 i").click(function(){
                         <div className="row">
                             <div className="col-lg-6 search_Bar">
                                 <i className="feather icon-search"></i>
-                                <input type="text" placeholder="Search" name="" />
+                                <input type="text" value={searchQuery}
+                                        onChange={this.handleSearchChange}
+                                        placeholder="Search for a driver..." />
                             </div>
                             <div className="col-lg-6 input_Bar">
                                 <input type="date" name="" />
                             </div>
                         </div>
                         <div className="row mt-1">
-                            <div className="col-lg-12 input_Bar">
-                                <select className="form-control" id="exampleSelect">
-                                    <option value="">Select Branch</option>
-                                    <option>Option 1</option>
-                                    <option>Option 2</option>
-                                    <option>Option 3</option>
-                                    <option>Option 4</option>
-                                    <option>Option 5</option>
+                        <div className="col-lg-3"> <label htmlFor="branches">Branches:</label></div>
+                            <div className="col-lg-9 input_Bar">
+
+                            <select value={selectedBranch} onChange={this.handleBranchChange}>
+                                <option value="">Select a branch</option>
+                                {branches.map(branch => (
+                                    <option key={branch.id} value={branch.id}>
+                                    {branch.name}
+                                    </option>
+                                ))}
                                 </select>
+            
                             </div>
                         </div>
                     </div>
-                    <ul>
-                    <li>
+                    
+                        <li>
                           <a href="#">
                                 <div className="form-group">
                                   <input type="checkbox" className="All" id="All" />
@@ -116,71 +201,22 @@ $(".routing_head h4 i").click(function(){
                                 </div>
                             </a>
                         </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider1"/>
-                                  <label htmlFor="Rider1"><img src={truck} alt="" /> Truck <span> 2022-01-22 07:18:04</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider2"/>
-                                  <label htmlFor="Rider2"><img src={truck} alt="" /> Car <span>2022-01-22 07:21:47</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider3"/>
-                                  <label htmlFor="Rider3"><img src={truckimg} alt="" /> Bus <span>2022-01-22 07:21:54</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider4"/>
-                                  <label htmlFor="Rider4"><img src={truck} alt="" /> Car <span>2022-01-22 07:18:04</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider5"/>
-                                  <label htmlFor="Rider5"><img src={truckimg} alt="" /> Bus <span>2022-01-22 07:21:47</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider6"/>
-                                  <label htmlFor="Rider6"><img src={truck} alt="" /> Car <span>2022-01-22 07:18:04</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider7"/>
-                                  <label htmlFor="Rider7"><img src={truckimg} alt="" /> Bus <span>2022-01-22 07:18:04</span></label>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a link to="#">
-                                <div className="form-group">
-                                  <input type="checkbox" id="Rider8"/>
-                                  <label htmlFor="Rider8"><img src={car} alt="" /> Car <span>2022-01-22 07:18:04</span></label>
-                                </div>
-                            </a>
-                        </li>
-                    </ul>
+                    <ul>
+                   
+                                            
+                        {filteredDrivers.map(driver => (
+                            <li key={driver.id}>
+                                <a href="#">
+                                            <div className="form-group">
+                                            <input type="checkbox" className='checkboxGroup' id="Rider{driver.id}"/>
+                                            <label htmlFor="Rider{driver.id}"><img src={car} alt="" />{driver.name} <span>2022-01-22 07:18:04</span></label>
+                                            </div>
+                                        </a>
+                            </li>
+                
+                        ))}
+                        
+                  </ul>
                 </div>
             </div>
             <div id="tab-2" className="tab-content">
